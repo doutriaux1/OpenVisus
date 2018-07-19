@@ -606,7 +606,7 @@ void TransferFunction::readFromObjectStream(ObjectStream& istream)
 
   if (istream.pushContext("input"))
   {
-    input_range.mode=(ComputeRange::Mode)cint(istream.readInline("input.normalization"));
+    input_range.mode=(ComputeRange::Mode)cint(istream.readInline("mode"));
     if (istream.pushContext("custom_range"))
     {
       input_range.custom_range.readFromObjectStream(istream);
@@ -681,7 +681,7 @@ void TransferFunction::readFromSceneObjectStream(ObjectStream& istream)
   
   if (istream.pushContext("input"))
   {
-    input_range.mode=(ComputeRange::Mode)cint(istream.readInline("input.normalization"));
+    input_range.mode=(ComputeRange::Mode)cint(istream.readInline("mode"));
     if (istream.pushContext("custom_range"))
     {
       input_range.custom_range.readFromObjectStream(istream);

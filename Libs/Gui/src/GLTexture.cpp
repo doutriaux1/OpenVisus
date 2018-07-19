@@ -158,9 +158,9 @@ GLuint GLTexture::textureId()
 
   //TODO HERE! I'm wasting texture memory
   if (dtype.isVectorOf(DTypes::UINT8))
-    textureFormat = (QOpenGLTexture::TextureFormat)std::vector<int>({ 0, GL_RGB8 ,GL_RGBA8  , GL_RGB8 ,GL_RGBA8 })[ncomponents];
+    textureFormat = (QOpenGLTexture::TextureFormat)std::vector<int>({ 0, GL_R8 ,GL_RG8, GL_RGB8, GL_RGBA8 })[ncomponents];
   else
-    textureFormat = (QOpenGLTexture::TextureFormat)std::vector<int>({ 0, GL_RGB32F ,GL_RGBA32F,GL_RGB32F,GL_RGBA32F })[ncomponents];
+    textureFormat = (QOpenGLTexture::TextureFormat)std::vector<int>({ 0, GL_R32F, GL_RG32F, GL_RGB32F, GL_RGBA32F })[ncomponents];
 
   auto sourceFormat = std::vector<int>({ 0,GL_LUMINANCE,GL_LUMINANCE_ALPHA, GL_RGB, GL_RGBA })[ncomponents];
   auto sourceType = dtype.isVectorOf(DTypes::UINT8) ? GL_UNSIGNED_BYTE : GL_FLOAT;

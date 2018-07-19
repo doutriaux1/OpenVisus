@@ -337,3 +337,10 @@ def VISUS_REGISTER_PYTHON_OBJECT_CLASS(object_name):
 
 
 %}
+
+%extend Visus::Object {
+    Visus::Array* toArray()
+    {
+      return dynamic_cast<Visus::Array*>($self);
+    } 
+}; 
