@@ -1,5 +1,5 @@
 
-import sys, os, sip
+import sys, os, sip, stat
 
 from OpenVisus import *
 
@@ -14,7 +14,56 @@ from VisusDataflowPy import *
 from VisusGuiPy      import *
 from VisusGuiNodesPy import *
 from VisusAppKitPy   import *
-import numpy as np
+import argparse
+from subprocess import call, check_call
+
+def convertToQWidget(value):
+  return VisusGuiPy.convertToQWidget(sip.unwrapinstance(value))
+
+# ///////////////////////////////////////////////////////////
+class MyWidget(QWidget):
+  def onKernelChanged(self):
+    if int(self.kernel[0].text())%2 == 0:
+      QMessageBox.information("","Kernel size should be odd")
+      return
+    modifyScript(self.kernel[0].text(),self.kernel[1].text(),True)
+
+  def onQueryChanged(self,value):
+    start=self.query_start[0].text()+" "+self.query_start[1].text()+" "+self.query_start[2].text()
+    end=self.query_end[0].text()+" "+self.query_end[1].text()+" "+self.query_end[2].text()
+    modifyQuery(start,end,True)
+
+  # __init__
+  def __init__(self,start,end):
+    QWidget.__init__(self)
+    layout=QFormLayout()
+    rows=[QHBoxLayout(),QHBoxLayout(),QHBoxLayout(),QHBoxLayout(),QHBoxLayout()]
+    s=start.split(" ")
+    e=end.split(" ")
+    self.query_start=[QLineEdit(s[0]),QLineEdit(s[1]),QLineEdit(s[2])]
+    self.query_end=[QLineEdit(e[0]),QLineEdit(e[1]),QLineEdit(e[2])]
+    self.kernel=[QLineEdit("11"),QLineEdit("8")]
+    for (item1,item2) in zip(self.query_start,self.query_end):
+      rows[0].addWidget(item1)
+      rows[1].addWidget(item2)
+    self.querySet=QToolButton()
+    self.querySet.setText("Set")
+    self.querySet.clicked.connect(self.onQueryChanged)
+    rows[2].addWidget(self.querySet)
+    rows[3].addWidget(self.kernel[0])
+    rows[3].addWidget(QLabel("Radius")) 
+    rows[3].addWidget(self.kernel[1])
+    layout.addRow("Query Start",rows[0])
+    layout.addRow("Query End",rows[1])
+    layout.addRow("",rows[2])
+    layout.addRow("Kernel Size",rows[3])
+    self.kernelSet=QToolButton()
+    self.kernelSet.setText("Set")
+    self.kernelSet.clicked.connect(self.onKernelChanged)
+    rows[4].addWidget(self.kernelSet)
+    layout.addRow("",rows[4])
+    self.setLayout(layout)
+    self.show()
 
 # ///////////////////////////////////////////////////////////
 class ExtractSubset(PythonNode):
@@ -33,14 +82,19 @@ class ExtractSubset(PythonNode):
     return PythonNode.processInput(self)
 
 # ///////////////////////////////////////////////////////////
-def save(data,dtype,i):
+def save(data,dtype,zstart,zend,i):
   # cast it to Visus::Array
   buffer=data.get().toArray()
   # convert Visus:Array to numpy array
   np_array=buffer.toNumPy()
-  filename='heaf_'+str(np_array.shape[2])+"_"+str(np_array.shape[1])+"_"+str(np_array.shape[0])+"_"+i+".raw"
-  # save numpy array to a .raw file
-  np_array.astype(dtype).tofile('/Users/venkat1/research/datasets/'+filename)
+  dims=[str(np_array.shape[2]),str(np_array.shape[1]),str(np_array.shape[0])]
+  filename=name+'_'+dims[0]+"_"+dims[1]+"_"+dims[2]+"_"+zstart+"_"+zend+".raw"
+  path=os.path.join(basepath,i+"/")
+  os.makedirs(path,exist_ok=True)
+    # save numpy array to a .raw file
+  np_array.astype(dtype).tofile(path+filename)
+  lstar.write("nohup ./Steepest_lstar "+dims[0]+" "+dims[1]+" "+dims[2]+" "+path+filename+" 0 0 0\n")
+  msc.write("nohup ./MSPallettSeg "+path+filename+" "+dims[0]+" "+dims[1]+" "+dims[2]+" "+persistence+" 0\n")
 
 # ///////////////////////////////////////////////////////////
 # def setCamera(viewer):
@@ -74,9 +128,9 @@ def save(data,dtype,i):
 #   camera_node.readFromObjectStream(stream)
 
 # ///////////////////////////////////////////////////////////
-def modifyQuery(viewer,zstart,zend):
-  # finding query node
-  query_node=viewer.findNodeByName("Volume 1")
+def modifyQuery(query_start,query_end,refresh=False):
+  # modify query node
+  node=viewer.findNodeByName("Volume 1")
   stree=StringTree("QueryNode","decoded_typename","QueryNode","name","Volume 1")
   accessindex=StringTree("accessindex","value","0")
   view_dependent=StringTree("view_dependent","value","0")
@@ -84,8 +138,8 @@ def modifyQuery(viewer,zstart,zend):
   quality=StringTree("quality","value","0")
   bounds=StringTree("bounds","pdim","3")
   box=StringTree("box")
-  box.addChild(StringTree("p1","value","240 240 "+zstart))
-  box.addChild(StringTree("p2","value","1010 1010 "+zend))
+  box.addChild(StringTree("p1","value",query_start))
+  box.addChild(StringTree("p2","value",query_end))
   bounds.addChild(box)
   stree.addChild(accessindex)
   stree.addChild(view_dependent)
@@ -93,12 +147,14 @@ def modifyQuery(viewer,zstart,zend):
   stree.addChild(quality)
   stree.addChild(bounds)
   stream=ObjectStream(stree,ord('r'))
-  query_node.readFromObjectStream(stream)
+  node.readFromObjectStream(stream)
+  if refresh:
+   viewer.refreshData(node)
 
 # ///////////////////////////////////////////////////////////
-def addScript(viewer):
-  scripting_node=viewer.findNodeByName("Scripting")
+def modifyScript(kernelSize="11",kernelRadius="8",refresh=False):
   # adding scripting code
+  node=viewer.findNodeByName("Scripting")
   stree=StringTree("ScriptingNode","decoded_typename","ScriptingNode","name","Scripting")
   script="import numpy as np\r\r" \
     "def simps(y,x):\r" \
@@ -126,7 +182,7 @@ def addScript(viewer):
     "   z.append(simps(y,x))\r" \
     "   total_weight+=z[-1]\r"\
     " return z/total_weight\r\r" \
-    "g=gaussiankernel(11,8.0)\r" \
+    "g=gaussiankernel("+kernelSize+","+kernelRadius+")\r" \
     "g1=(np.matrix(g)).round(decimals=6)\r" \
     "g2=np.transpose(g1)\r" \
     "g3=g2*g1\r" \
@@ -139,12 +195,14 @@ def addScript(viewer):
     "output=Array.fromNumPy(temp)"
   stree.addChild(StringTree("code")).addChild(StringTree("#text","value",script))
   stream=ObjectStream(stree,ord('r'))
-  scripting_node.readFromObjectStream(stream)
+  node.readFromObjectStream(stream)
+  if refresh:
+   viewer.refreshData(node)
 
 # ///////////////////////////////////////////////////////////
-def addPalette(viewer):
+def addPalette(refresh=False):
 # set palette
-  palette_node=viewer.findNodeByName("Palette")
+  node=viewer.findNodeByName("Palette")
   stree=StringTree("PaletteNode","decoded_typename","PaletteNode","name","Palette")
   palette=StringTree("palette","attenuation","0.0","name","GrayTransparent")
   custom_range=StringTree("custom_range")
@@ -156,25 +214,30 @@ def addPalette(viewer):
   palette.addChild(inp)
   stree.addChild(palette)
   stream=ObjectStream(stree,ord('r'))
-  palette_node.beginUpdate()
-  palette_node.readFromObjectStream(stream)
-  palette_node.endUpdate()
+  node.readFromObjectStream(stream)
+  if refresh:
+   viewer.refreshData(node)
 
 # ///////////////////////////////////////////////////////////
 def main(zstart,zend,i):
+  global viewer
   viewer=Viewer()
-  viewer.openFile("file:///Users/venkat1/research/datasets/grain_boundaries_1a.idx")
-  dataset_node=toDataset(viewer.findNodeByName("file:///Users/venkat1/research/datasets/grain_boundaries_1a.idx"))
-  dataset_node.setShowBounds(False)
+  viewer.openFile("file://"+dataset)
+  query_start="240 240 "+zstart
+  query_end="1010 1010 "+zend
+  mywidget=MyWidget(query_start,query_end)
+  viewer.addDockWidget("",convertToQWidget(mywidget))
+  dataset_node=toDataset(viewer.findNodeByName("file://"+dataset))
+  dataset_node.setShowBounds(True)
   
   root=viewer.getRoot()
   pynode=ExtractSubset()
   viewer.addNode(root,pynode)
   
   #setCamera(viewer)
-  modifyQuery(viewer,zstart,zend)  
-  addScript(viewer)
-  addPalette(viewer)
+  modifyQuery(query_start,query_end)
+  modifyScript()
+  addPalette()
   
   # pynode will get the data from the scripting
   viewer.connectPorts(viewer.findNodeByName("Scripting"),"data","data",pynode)  
@@ -182,7 +245,7 @@ def main(zstart,zend,i):
   # get data from pynode and save as raw
   data=pynode.readInput("data")
   dtype=dataset_node.getDataset().get().getDefaultField().dtype.toString()
-  save(data,dtype,i)
+  save(data,dtype,zstart,zend,i)
   
   viewer=None
 # ///////////////////////////////////////////////////////////
@@ -201,10 +264,54 @@ if __name__ == '__main__':
   AppKitModule.attach()  
   VISUS_REGISTER_PYTHON_OBJECT_CLASS("ExtractSubset")
   
-  zstack=["6150","6300","6450","6600","6700","6850"]
-  for i in range(0,len(zstack),2):
-    main(zstack[i], zstack[i+1],str(int(i/2)))
+  parser=argparse.ArgumentParser(description="Extract subsets for HEAF Segmenatation")
+  parser.add_argument("-d", "--dataset",help="full path to dataset")
+  parser.add_argument("-o", "--out",help="path to output subset of the dataset")
+  parser.add_argument("-n", "--name",help="output filename")
+  parser.add_argument("-p", "--persistence",default="0.2",help="persistence for segmenatation")
+  parser.add_argument("-z", "--stack",nargs="*",type=str,help="list of zstart and end of subsets to segment") 
+  parser.add_argument("-lp", "--lstar_path",help="path to lstar")
+  parser.add_argument("-sp", "--msc_path",help="path to msc") 
+  args=parser.parse_args()
+  global dataset
+  dataset=args.dataset
+  global basepath
+  basepath=args.out
+  global name
+  name=args.name
+  global persistence
+  persistence=args.persistence
+
+
+  #create script to start lstar
+  global lstar
+  os.makedirs(basepath,exist_ok=True)
+  lstar_filename=basepath+"start-lstar.sh"
+  lstar=open(lstar_filename, 'w')
+  lstar.write("#!/bin/sh" + "\n")
+  lstar.write("cd $1" + "\n")
+  lstar.write("Starting lstar" + "\n")
+
+  global msc
+  os.makedirs(basepath,exist_ok=True)
+  msc_filename=basepath+"start-msc.sh"
+  msc=open(msc_filename, 'w')
+  msc.write("#!/bin/sh" + "\n")
+  msc.write("cd $1" + "\n")
+  msc.write("Starting MSC" + "\n")
+
+  for i in range(0,len(args.stack),2):
+    main(args.stack[i], args.stack[i+1],str(int(i/2)))
   forceGC()
-  
+  msc.close()
+  lstar.close()
+
+  st=os.stat(lstar_filename)
+  os.chmod(lstar_filename, st.st_mode | stat.S_IEXEC)
+  st=os.stat(msc_filename)
+  os.chmod(msc_filename, st.st_mode | stat.S_IEXEC)
+  if os.path.exists(lstar_filename):
+    check_call("sh "+lstar_filename+" '%s'" % args.lstar_path,shell=True)
+    check_call("sh "+msc_filename+" '%s'" % args.msc_path,shell=True)
   AppKitModule.detach()
   sys.exit(0)
