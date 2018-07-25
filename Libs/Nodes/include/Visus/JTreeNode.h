@@ -143,6 +143,10 @@ public:
     recompute();
   }
 
+  static JTreeNode* castFrom(Object* obj) {
+    return dynamic_cast<JTreeNode*>(obj);
+  }
+
   //processInput
   virtual bool processInput() override;
 

@@ -94,6 +94,10 @@ public:
     return index >= 0 ? presets.code[index] : default_value;
   }
 
+  static ScriptingNode* castFrom(Object* obj) {
+    return dynamic_cast<ScriptingNode*>(obj);
+  }
+
   //processInput
   virtual bool processInput() override;
 

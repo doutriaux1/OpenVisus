@@ -156,6 +156,10 @@ public:
     this->clipping = other.clipping;
   }
 
+  static Array* castFrom(Object* obj) {
+    return dynamic_cast<Array*>(obj);
+  }
+
 public:
 
   //createView

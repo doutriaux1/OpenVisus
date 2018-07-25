@@ -85,7 +85,7 @@ public:
     setAccess(SharedPtr<Access>());
     this->endUpdate();
   }
-
+    
   //setAccess
   void setAccess(SharedPtr<Access> value) {
     this->access=value;
@@ -161,6 +161,10 @@ public:
     beginUpdate();
     this->bViewDependentEnabled =value;
     endUpdate();
+  }
+    
+  static QueryNode* castFrom(Object* obj) {
+    return dynamic_cast<QueryNode*>(obj);
   }
 
   //exitFromDataflow (to avoid dataset stuck in memory)

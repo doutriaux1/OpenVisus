@@ -56,6 +56,10 @@ public:
   //constructor
   StatisticsNode(String name="");
 
+  static StatisticsNode* castFrom(Object* obj) {
+    return dynamic_cast<StatisticsNode*>(obj);
+  }
+
   //destructor
   virtual ~StatisticsNode();
 

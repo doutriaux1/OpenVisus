@@ -91,6 +91,10 @@ private:
 
   //doPublish
   void doPublish();
+  
+  static FieldNode* castFrom(Object* obj) {
+    return dynamic_cast<FieldNode*>(obj);
+  }
 
   //modelChanged
   virtual void modelChanged() override {

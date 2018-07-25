@@ -58,19 +58,3 @@ using namespace Visus;
 %include <Visus/DatasetNode.h>
 %include <Visus/QueryNode.h>
 %include <Visus/KdQueryNode.h>
-
-%inline
-%{
-    Visus::QueryNode* toQuery(Visus::Node* obj)
-    {
-      return dynamic_cast<Visus::QueryNode*>(obj);
-    }
-%};
-
-%inline
-%{
-    Visus::DatasetNode* toDataset(Visus::Node* obj)
-    {
-      return dynamic_cast<Visus::DatasetNode*>(obj);
-    }
-%};

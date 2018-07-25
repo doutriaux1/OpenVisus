@@ -74,6 +74,10 @@ public:
     endUpdate();
   }
 
+  static ModelViewNode* castFrom(Object* obj) {
+    return dynamic_cast<ModelViewNode*>(obj);
+  }
+
 public:
 
   //writeToObjectStream

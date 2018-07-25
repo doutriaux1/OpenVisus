@@ -72,6 +72,10 @@ public:
     return isInputConnected("data");
   }
 
+  static PaletteNode* castFrom(Object* obj) {
+    return dynamic_cast<PaletteNode*>(obj);
+  }
+
   //processInput
   virtual bool processInput() override;
 

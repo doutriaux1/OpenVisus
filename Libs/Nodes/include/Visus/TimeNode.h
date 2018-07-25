@@ -83,6 +83,10 @@ public:
   //setPlayMsec
   void setPlayMsec(int value);
 
+  static TimeNode* castFrom(Object* obj) {
+    return dynamic_cast<TimeNode*>(obj);
+  }
+
   //enterInDataflow
   virtual void enterInDataflow() override;
 

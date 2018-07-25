@@ -56,6 +56,10 @@ public:
   KdQueryNode(String name = "") : QueryNode(name){
   }
 
+  static KdQueryNode* castFrom(Object* obj) {
+    return dynamic_cast<KdQueryNode*>(obj);
+  }
+
   //destructor
   virtual ~KdQueryNode(){
   }

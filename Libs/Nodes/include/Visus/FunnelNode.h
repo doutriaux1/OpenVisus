@@ -59,6 +59,10 @@ public:
   ~FunnelNode(){
   }
 
+  static FunnelNode* castFrom(Object* obj) {
+    return dynamic_cast<FunnelNode*>(obj);
+  }
+
   //processInput
   virtual bool processInput() override;
 
